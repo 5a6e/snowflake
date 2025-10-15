@@ -6,31 +6,35 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"sync"
 	"time"
 )
 
 var (
-	// Epoch is set to the twitter snowflake epoch of Nov 04 2010 01:42:54 UTC in milliseconds
+	// Epoch is set to the twitter snowflake epoch of Nov 04 2025-09-11 00:05:06.200 UTC in milliseconds
 	// You may customize this to set a different epoch for your application.
-	Epoch int64 = 1288834974657
+	Epoch int64 = 1757549106200
 
 	// NodeBits holds the number of bits to use for Node
 	// Remember, you have a total 22 bits to share between Node/Step
-	NodeBits uint8 = 10
+	NodeBits uint8 = 6
+
+	ClockBits uint8 = 4
 
 	// StepBits holds the number of bits to use for Step
 	// Remember, you have a total 22 bits to share between Node/Step
 	StepBits uint8 = 12
 
 	// DEPRECATED: the below four variables will be removed in a future release.
-	mu        sync.Mutex
-	nodeMax   int64 = -1 ^ (-1 << NodeBits)
-	nodeMask        = nodeMax << StepBits
-	stepMask  int64 = -1 ^ (-1 << StepBits)
-	timeShift       = NodeBits + StepBits
-	nodeShift       = StepBits
+	mu         sync.Mutex
+	nodeMax    int64 = -1 ^ (-1 << NodeBits)
+	nodeMask         = nodeMax << StepBits
+	stepMask   int64 = -1 ^ (-1 << StepBits)
+	timeShift        = NodeBits + ClockBits + StepBits
+	nodeShift        = StepBits
+	clockshift       = StepBits + NodeBits
 )
 
 const encodeBase32Map = "ybndrfg8ejkmcpqxot1uwisza345h769"
@@ -83,12 +87,14 @@ type Node struct {
 	time  int64
 	node  int64
 	step  int64
+	clock int64
 
-	nodeMax   int64
-	nodeMask  int64
-	stepMask  int64
-	timeShift uint8
-	nodeShift uint8
+	nodeMax    int64
+	nodeMask   int64
+	stepMask   int64
+	timeShift  uint8
+	nodeShift  uint8
+	clockshift uint8
 }
 
 // An ID is a custom type used for a snowflake ID.  This is used so we can
@@ -119,6 +125,7 @@ func NewNode(node int64) (*Node, error) {
 	n.stepMask = -1 ^ (-1 << StepBits)
 	n.timeShift = NodeBits + StepBits
 	n.nodeShift = StepBits
+	n.clockshift = StepBits + NodeBits
 
 	if n.node < 0 || n.node > n.nodeMax {
 		return nil, errors.New("Node number must be between 0 and " + strconv.FormatInt(n.nodeMax, 10))
@@ -147,16 +154,20 @@ func (n *Node) Generate() ID {
 
 		if n.step == 0 {
 			for now <= n.time {
-				now = time.Since(n.epoch).Milliseconds()
+				now = time.Since(n.epoch).Milliseconds() // loop for next millisecond
 			}
 		}
+	} else if now < n.time {
+		log.Println("the system clock is moving backwards", now, n.time)
+		n.clock += n.clock
 	} else {
 		n.step = 0
 	}
 
 	n.time = now
+	n.clock = 0
 
-	r := ID((now)<<n.timeShift |
+	r := ID((now)<<n.timeShift | n.clock<<n.clockshift |
 		(n.node << n.nodeShift) |
 		(n.step),
 	)
