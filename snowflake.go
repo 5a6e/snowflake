@@ -30,11 +30,12 @@ var (
 	// DEPRECATED: the below four variables will be removed in a future release.
 	mu         sync.Mutex
 	nodeMax    int64 = -1 ^ (-1 << NodeBits)
+	clockMask  int64 = (-1 ^ (-1 << ClockBits)) << (StepBits + NodeBits)
 	nodeMask         = nodeMax << StepBits
 	stepMask   int64 = -1 ^ (-1 << StepBits)
-	timeShift        = NodeBits + ClockBits + StepBits
+	timeShift        = ClockBits + NodeBits + StepBits
 	nodeShift        = StepBits
-	clockshift       = StepBits + NodeBits
+	clockshift       = NodeBits + StepBits
 )
 
 const encodeBase32Map = "ybndrfg8ejkmcpqxot1uwisza345h769"
@@ -114,7 +115,8 @@ func NewNode(node int64) (*Node, error) {
 	nodeMax = -1 ^ (-1 << NodeBits)
 	nodeMask = nodeMax << StepBits
 	stepMask = -1 ^ (-1 << StepBits)
-	timeShift = NodeBits + StepBits
+	timeShift = ClockBits + NodeBits + StepBits
+	clockshift = NodeBits + StepBits
 	nodeShift = StepBits
 	mu.Unlock()
 
@@ -123,9 +125,9 @@ func NewNode(node int64) (*Node, error) {
 	n.nodeMax = -1 ^ (-1 << NodeBits)
 	n.nodeMask = n.nodeMax << StepBits
 	n.stepMask = -1 ^ (-1 << StepBits)
-	n.timeShift = NodeBits + StepBits
+	n.timeShift = ClockBits + NodeBits + StepBits
+	n.clockshift = NodeBits + StepBits
 	n.nodeShift = StepBits
-	n.clockshift = StepBits + NodeBits
 
 	if n.node < 0 || n.node > n.nodeMax {
 		return nil, errors.New("Node number must be between 0 and " + strconv.FormatInt(n.nodeMax, 10))
@@ -346,6 +348,10 @@ func (f ID) Time() int64 {
 // DEPRECATED: the below function will be removed in a future release.
 func (f ID) Node() int64 {
 	return int64(f) & nodeMask >> nodeShift
+}
+
+func (f ID) Clock() int64 {
+	return int64(f) & clockMask >> clockshift
 }
 
 // Step returns an int64 of the snowflake step (or sequence) number
