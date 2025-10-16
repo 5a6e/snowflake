@@ -159,15 +159,16 @@ func (n *Node) Generate() ID {
 				now = time.Since(n.epoch).Milliseconds() // loop for next millisecond
 			}
 		}
+		n.clock = 0
 	} else if now < n.time {
-		log.Println("the system clock is moving backwards", now, n.time)
+		log.Println("[snowflake warning] the system clock is moving backwards", now, n.time)
 		n.clock += n.clock
 	} else {
 		n.step = 0
+		n.clock = 0
 	}
 
 	n.time = now
-	n.clock = 0
 
 	r := ID((now)<<n.timeShift | n.clock<<n.clockshift |
 		(n.node << n.nodeShift) |

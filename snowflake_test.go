@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 //******************************************************************************
@@ -80,6 +82,16 @@ func TestPrintAll(t *testing.T) {
 	t.Logf("Bytes    : %#v", id.Bytes())
 	t.Logf("IntBytes : %#v", id.IntBytes())
 
+}
+
+func TestNodeClock(t *testing.T) {
+	node, err := NewNode(0)
+	if err != nil {
+		t.Fatalf("error creating NewNode, %s", err)
+	}
+
+	id := node.Generate()
+	require.True(t, id.Clock() == 0)
 }
 
 func TestInt64(t *testing.T) {
