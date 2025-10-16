@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"reflect"
 	"testing"
-
-	"github.com/stretchr/testify/require"
 )
 
 //******************************************************************************
@@ -91,7 +89,9 @@ func TestNodeClock(t *testing.T) {
 	}
 
 	id := node.Generate()
-	require.True(t, id.Clock() == 0)
+	if id.Clock() == 0 {
+		t.Fatalf("expected clock to be non-zero, got %d", id.Clock())
+	}
 }
 
 func TestInt64(t *testing.T) {
